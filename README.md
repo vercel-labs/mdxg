@@ -36,7 +36,7 @@ Any interface that displays markdown (editors, documentation platforms, note-tak
 
 ## The Capabilities
 
-The full specification is in [SPEC.md](SPEC.md). Here's the summary:
+The full specification is in [SPEC.md](https://mdxg.org/spec). Here's the summary:
 
 **Virtual pages.** H1 and H2 headings split a document into navigable pages. A single markdown file becomes a multi-page experience. No file splitting, no config, no build step.
 
