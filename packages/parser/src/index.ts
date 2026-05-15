@@ -60,9 +60,28 @@ export function splitIntoChunks(raw: string): Chunk[] {
   const lines = raw.split("\n");
   const chunks: Chunk[] = [];
   let current: Chunk | null = null;
+  let inCodeFence = false;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    
+    if (/^`{3,}|^~{3,}/.test(line)) {
+      inCodeFence = !inCodeFence;
+      if (!current) {
+        current = { title: "Introduction", depth: 1, lines: [] };
+      }
+      current.lines.push(line);
+      continue;
+    }
+    
+    if (inCodeFence) {
+      if (!current) {
+        current = { title: "Introduction", depth: 1, lines: [] };
+      }
+      current.lines.push(line);
+      continue;
+    }
+    
     const h1Match = line.match(/^#\s+(.+)$/);
     const h2Match = line.match(/^##\s+(.+)$/);
 

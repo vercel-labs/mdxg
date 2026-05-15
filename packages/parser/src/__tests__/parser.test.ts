@@ -102,6 +102,34 @@ describe("splitIntoChunks", () => {
     expect(chunks).toHaveLength(1);
     expect(chunks[0].lines).toContain("### Sub heading");
   });
+
+  it("ignores H1/H2 headings inside fenced code blocks", () => {
+    const chunks = splitIntoChunks("# Main\n```bash\n# Comment\n## Not a heading\n```\n## Sub\ntext");
+    expect(chunks).toHaveLength(2);
+    expect(chunks[0].title).toBe("Main");
+    expect(chunks[1].title).toBe("Sub");
+  });
+
+  it("ignores H1/H2 headings inside tilde code blocks", () => {
+    const chunks = splitIntoChunks("# Main\n~~~python\n# Comment\n## Not a heading\n~~~\n## Sub\ntext");
+    expect(chunks).toHaveLength(2);
+    expect(chunks[0].title).toBe("Main");
+    expect(chunks[1].title).toBe("Sub");
+  });
+
+  it("ignores setext headings inside code blocks", () => {
+    const chunks = splitIntoChunks("# Page\n```\nNot a heading\n---\n```\nReal Sub\n------\ncontent");
+    expect(chunks).toHaveLength(2);
+    expect(chunks[0].title).toBe("Page");
+    expect(chunks[1].title).toBe("Real Sub");
+  });
+
+  it("handles multiple code blocks with headings", () => {
+    const chunks = splitIntoChunks("# First\n```bash\n# Comment 1\n```\ntext\n```python\n# Comment 2\n```\n# Second\ncontent");
+    expect(chunks).toHaveLength(2);
+    expect(chunks[0].title).toBe("First");
+    expect(chunks[1].title).toBe("Second");
+  });
 });
 
 describe("extractHeadings", () => {
