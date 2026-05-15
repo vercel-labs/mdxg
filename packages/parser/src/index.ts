@@ -8,12 +8,19 @@ export interface Heading {
   id: string;
 }
 
+export interface InlineComment {
+  id: string;
+  text: string;
+  anchorText?: string;
+}
+
 export interface Page {
   title: string;
   id: string;
   /** 1 for H1 pages, 2 for H2 pages */
   depth: number;
   headings: Heading[];
+  comments: InlineComment[];
   html: string;
   markdown: string;
 }
@@ -131,6 +138,33 @@ export function extractHeadings(lines: string[]): Heading[] {
   return headings;
 }
 
+export function extractInlineComments(markdown: string): InlineComment[] {
+  const anchorTextById = new Map<string, string>();
+  const anchorPattern =
+    /<a\b(?=[^>]*\bclass=(?:"[^"]*\bnote\b[^"]*"|'[^']*\bnote\b[^']*'))(?=[^>]*\bid=(?:"([^"]+)"|'([^']+)'))[^>]*>([\s\S]*?)<\/a>/gi;
+  const commentPattern = /<!--\s*([A-Za-z][\w.-]*)\s*:\s*([\s\S]*?)\s*-->/g;
+  const comments: InlineComment[] = [];
+
+  for (const match of markdown.matchAll(anchorPattern)) {
+    const id = match[1] ?? match[2];
+    if (!id) continue;
+    anchorTextById.set(id, match[3].replace(/<[^>]*>/g, "").trim());
+  }
+
+  for (const match of markdown.matchAll(commentPattern)) {
+    const id = match[1];
+    const text = match[2].trim();
+    const anchorText = anchorTextById.get(id);
+    comments.push({
+      id,
+      text,
+      ...(anchorText ? { anchorText } : {}),
+    });
+  }
+
+  return comments;
+}
+
 function sanitizeHtml(html: string): string {
   return html
     .replace(/<script[\s>][\s\S]*?<\/script>/gi, "")
@@ -232,9 +266,9 @@ export function parseMarkdown(raw: string, options: ParseOptions = {}): Page[] {
     slugCounts.set(baseSlug, count + 1);
     const pageId = count > 0 ? `${baseSlug}-${count}` : baseSlug;
 
-    const headings = extractHeadings(chunk.lines);
-
     const markdown = chunk.lines.join("\n");
+    const headings = extractHeadings(chunk.lines);
+    const comments = extractInlineComments(markdown);
 
     const headingIdMap = new Map<string, string[]>();
     for (const h of headings) {
@@ -272,6 +306,7 @@ export function parseMarkdown(raw: string, options: ParseOptions = {}): Page[] {
       id: pageId,
       depth: chunk.depth,
       headings,
+      comments,
       html,
       markdown,
     };

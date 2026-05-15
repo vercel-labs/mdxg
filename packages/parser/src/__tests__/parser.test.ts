@@ -3,6 +3,7 @@ import {
   parseMarkdown,
   splitIntoChunks,
   extractHeadings,
+  extractInlineComments,
   slugify,
   escapeHtml,
 } from "../index";
@@ -148,6 +149,30 @@ describe("extractHeadings", () => {
   });
 });
 
+describe("extractInlineComments", () => {
+  it("matches note anchors to hidden markdown comments", () => {
+    const markdown =
+      'The <a class="note" id="n1">proposed architecture</a> needs work.\n\n<!-- n1: needs a diagram -->';
+
+    expect(extractInlineComments(markdown)).toEqual([
+      {
+        id: "n1",
+        text: "needs a diagram",
+        anchorText: "proposed architecture",
+      },
+    ]);
+  });
+
+  it("keeps comments without an anchor so viewers can report them", () => {
+    expect(extractInlineComments("<!-- orphan: unresolved review note -->")).toEqual([
+      {
+        id: "orphan",
+        text: "unresolved review note",
+      },
+    ]);
+  });
+});
+
 describe("parseMarkdown", () => {
   it("returns empty array for whitespace-only input", () => {
     const pages = parseMarkdown("   \n\n  ");
@@ -228,5 +253,18 @@ describe("parseMarkdown", () => {
     const pages = parseMarkdown(md);
     expect(pages[0].headings).toHaveLength(1);
     expect(pages[0].headings[0].text).toBe("Real heading");
+  });
+
+  it("includes inline comment metadata on parsed pages", () => {
+    const md = '# Review\nThe <a class="note" id="n1">decision</a> needs context.\n\n<!-- n1: add tradeoffs -->';
+    const pages = parseMarkdown(md);
+
+    expect(pages[0].comments).toEqual([
+      {
+        id: "n1",
+        text: "add tradeoffs",
+        anchorText: "decision",
+      },
+    ]);
   });
 });
