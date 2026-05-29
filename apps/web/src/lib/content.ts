@@ -29,7 +29,7 @@ export async function getDocs(): Promise<Doc[]> {
       const raw = await readFile(path.join(DOCS_DIR, file), "utf-8");
       const pages = await parseMarkdown(raw);
       for (const page of pages) {
-        page.html = rewriteImagePaths(page.html);
+        page.html = rewriteRelativePaths(page.html);
       }
       const title = pages[0]?.title ?? file;
       return { slug, label, title, pages, rawMarkdown: raw };
@@ -39,8 +39,33 @@ export async function getDocs(): Promise<Doc[]> {
   return cachedDocs;
 }
 
-function rewriteImagePaths(html: string): string {
-  return html.replace(/src=(['"])assets\//g, 'src=$1/');
+function rewriteRelativePaths(html: string): string {
+  let out = html.replace(/src=(['"])assets\//g, "src=$1/");
+
+  out = out.replace(/href=(['"])(?:\.\/)?README\.md(#[^'"]*)?\1/g, (_m, q: string, hash?: string) => {
+    return `href=${q}/${hash ?? ""}${q}`;
+  });
+
+  out = out.replace(/href=(['"])(?:\.\/)?SPEC\.md(#[^'"]*)?\1/g, (_m, q: string, hash?: string) => {
+    return `href=${q}/spec${hash ?? ""}${q}`;
+  });
+
+  out = out.replace(/href=(['"])(?![a-zA-Z][a-zA-Z0-9+.-]*:|#|\/)([^'"]+)\1/g, (_m, q: string, href: string) => {
+    const normalized = href.replace(/^(\.\/)+/g, "").replace(/^(\.\.\/)+/g, "");
+    if (normalized === "README.md" || normalized.startsWith("README.md#")) {
+      return `href=${q}/${normalized.slice("README.md".length)}${q}`;
+    }
+    if (normalized === "SPEC.md" || normalized.startsWith("SPEC.md#")) {
+      return `href=${q}/spec${normalized.slice("SPEC.md".length)}${q}`;
+    }
+
+    const basename = path.posix.basename(normalized);
+    const looksLikeDirectory = normalized.endsWith("/") || !basename.includes(".");
+    const type = looksLikeDirectory ? "tree" : "blob";
+    return `href=${q}https://github.com/vercel-labs/mdxg/${type}/main/${normalized}${q}`;
+  });
+
+  return out;
 }
 
 export async function getDoc(slug: string): Promise<Doc | undefined> {
